@@ -37,9 +37,12 @@ USAGE:
 ADV. USAGE:
   For advanced usage, see doc/index.html or output of --help option.
   
-solardatov:
+  
+ 
+*solardatov:*
 
 I added test_custom_lib_paths section to the XML config file to include custom LD_LIBRARY_PATH's in run_test.sh
+
     <test_custom_lib_paths>
         /custom/lib/path1/
         /custom/lib/path2/
