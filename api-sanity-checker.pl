@@ -694,6 +694,7 @@ my %KnownLibs;
 # Default paths
 my @DefaultLibPaths = (); # /usr/lib
 my @DefaultIncPaths = (); # /usr/include
+my @ForcedLibPathsForTest = (); # library paths to use in run_test.sh
 
 # Test results
 my %GenResult;
@@ -1408,6 +1409,12 @@ sub readDescriptor($)
                 $InterfacesList{$Interface}=1;
             }
         }
+    }
+
+    foreach my $CustomLibPath (split(/\s*\n\s*/, parseTag(\$Content, "test_custom_lib_paths")))
+    {
+        $CustomLibPath =~ s/^\s+|\s+$//g;
+        push(@ForcedLibPathsForTest, $CustomLibPath);
     }
     
     my (@Opt_Libs, @Opt_Flags) = ();
@@ -12792,7 +12799,7 @@ sub get_RunScript($)
                 $Content .= "INSTALL_PREFIX=\${INSTALL_PREFIX:-$INSTALL_PREFIX}\n\n";
             }
             
-            my $EnvSet = "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\"".join(":", @Paths)."\"";
+            my $EnvSet = "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\"".join(":", @Paths)."\":".join(":", @ForcedLibPathsForTest);
             $Content .= $EnvSet." && ./test arg1 arg2 arg3 >output 2>&1\n";
             
             return $Content;
