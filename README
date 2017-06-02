@@ -41,10 +41,17 @@ ADV. USAGE:
  
 solardatov:
 
-I added test_custom_lib_paths section to the XML config file to include custom LD_LIBRARY_PATH's in run_test.sh
+I added test_custom_lib_paths and test_forced_install_prefix section to the XML config file to include custom LD_LIBRARY_PATH's in run_test.sh
 
     <test_custom_lib_paths>
         /custom/lib/path1/
         /custom/lib/path2/
     </test_custom_lib_paths>
+    
+    
+    <test_forced_install_prefix>
+        ../../../../../../../../../../../../
+    </test_forced_install_prefix>
 
+ 
+ Also, if test_forced_install_prefix exists, created run_test.sh and Makefiles should not have absolute PATHs
