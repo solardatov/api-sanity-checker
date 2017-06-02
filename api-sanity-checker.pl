@@ -695,6 +695,9 @@ my %KnownLibs;
 my @DefaultLibPaths = (); # /usr/lib
 my @DefaultIncPaths = (); # /usr/include
 my @ForcedLibPathsForTest = (); # library paths to use in run_test.sh
+my @ForcedInstallPrefixForTest = (); # forced INSTAL_PREFIX to use in run_test.sh
+my @ForcedIncludes = (); # forced includes to use in run_test.sh
+my @ForcedLibPaths = (); # forced libs to use in run_test.sh. To have ability to put own libs (like precompiled libcurl) before system libs
 
 # Test results
 my %GenResult;
@@ -1414,7 +1417,47 @@ sub readDescriptor($)
     foreach my $CustomLibPath (split(/\s*\n\s*/, parseTag(\$Content, "test_custom_lib_paths")))
     {
         $CustomLibPath =~ s/^\s+|\s+$//g;
-        push(@ForcedLibPathsForTest, $CustomLibPath);
+        $CustomLibPathForTest = $CustomLibPath;
+
+        if ((substr $CustomLibPath, 0, 2) eq "..")
+        {
+            #doing dirty hack
+            $CustomLibPath =~ s/\.\.\///g;
+            $CustomLibPathForTest =~ s/\.\.\///g;
+            $CustomLibPath = "\$(INSTALL_PREFIX)".$CustomLibPath;
+            $CustomLibPathForTest = "\${INSTALL_PREFIX}".$CustomLibPathForTest;
+        }
+        
+        push(@ForcedLibPaths, "-L".$CustomLibPath);
+        push(@ForcedLibPathsForTest, $CustomLibPathForTest);
+    }
+
+    foreach my $ForcedInstallPrefix (split(/\s*\n\s*/, parseTag(\$Content, "test_forced_install_prefix")))
+    {
+        $ForcedInstallPrefix =~ s/^\s+|\s+$//g;
+        push(@ForcedInstallPrefixForTest, $ForcedInstallPrefix);
+    }
+
+    if (scalar @ForcedInstallPrefixForTest > 1)
+    {
+        print "You can have only one forced INSTALL_PREFIX, please check your config!\n";
+    }
+
+    if (scalar @ForcedInstallPrefixForTest > 0)
+    {
+        foreach my $ForcedInclude (split(/\s*\n\s*/, parseTag(\$Content, "include_paths")))
+        {
+            $ForcedInclude =~ s/^\s+|\s+$//g; # trim
+
+            if ((substr $ForcedInclude, 0, 2) eq "..")
+            {
+                #doing dirty hack
+                $ForcedInclude =~ s/\.\.\///g;
+                $ForcedInclude = "\$(INSTALL_PREFIX)".$ForcedInclude;
+            }
+            
+            push(@ForcedIncludes, "-I".$ForcedInclude);
+        }
     }
     
     my (@Opt_Libs, @Opt_Flags) = ();
@@ -12799,7 +12842,7 @@ sub get_RunScript($)
                 $Content .= "INSTALL_PREFIX=\${INSTALL_PREFIX:-$INSTALL_PREFIX}\n\n";
             }
             
-            my $EnvSet = "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\"".join(":", @Paths)."\":".join(":", @ForcedLibPathsForTest);
+            my $EnvSet = "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:".join(":", @ForcedLibPathsForTest).":\"".join(":", @Paths)."\"";
             $Content .= $EnvSet." && ./test arg1 arg2 arg3 >output 2>&1\n";
             
             return $Content;
@@ -13202,10 +13245,18 @@ sub get_Makefile($$)
                 $Makefile .= " ".$CompilerOptions_Cflags;
             }
             if(@INCS) {
-                $Makefile .= "\nINCLUDES = ".join(" ", @INCS);
+
+                if (scalar @ForcedInstallPrefixForTest == 0)
+                {
+                    $Makefile .= "\nINCLUDES = ".join(" ", @INCS);
+                }
+                else
+                {
+                    $Makefile .= "\nINCLUDES = ".join(" ", @ForcedIncludes);
+                }
             }
             if(@LIBS) {
-                $Makefile .= "\nLIBS     = ".join(" ", @LIBS);
+                $Makefile .= "\nLIBS     = ".join(" ", @ForcedLibPaths)." ".join(" ", @LIBS);
             }
             $Makefile .= "\n\nall: $Exe\n\n";
             $Makefile .= "$Exe: $Source\n\t";
@@ -14462,8 +14513,16 @@ sub detectInstallPrefix()
     my @Libs = sort split(/\s*\n\s*/, $Descriptor{"Libs"});
     
     # detect install prefix
-    if(@Headers and @Libs) {
-        $INSTALL_PREFIX = detectPrefix(@Headers, @Libs);
+    if(@Headers and @Libs) 
+    {
+        if (scalar @ForcedInstallPrefixForTest == 0)
+        {
+            $INSTALL_PREFIX = detectPrefix(@Headers, @Libs);
+        }
+        else
+        {
+            $INSTALL_PREFIX = $ForcedInstallPrefixForTest[0];
+        }
     }
 }
 
