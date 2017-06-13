@@ -13123,7 +13123,7 @@ sub get_Makefile($$)
     my @LIBS = ();
     my @INCS = ();
     
-    foreach my $Path (sort (keys(%UsedSharedObjects), keys(%LibsDepend), keys(%SpecLibs)))
+    foreach my $Path (sort (keys(%LibsDepend), keys(%SpecLibs)))
     {
         if($TestFormat eq "CL")
         {
